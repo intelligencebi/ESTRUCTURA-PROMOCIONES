@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 from app.utils.supabase_client import supabase
+
 
 st.set_page_config(page_title="Registro general de jugadores", page_icon="📋", layout="wide")
 
