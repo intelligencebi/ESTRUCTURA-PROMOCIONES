@@ -1,3 +1,6 @@
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
 import streamlit as st
 import pandas as pd
 from supabase import create_client
@@ -15,13 +18,11 @@ supabase = create_client(url, key)
 st.set_page_config(page_title="Resumen Promos", page_icon="📊", layout="wide")
 st.title("📊 Resumen Diario por Promoción")
 
-# Selector de promoción
 promo = st.selectbox(
     "Seleccioná una promoción",
     ["PROMO ORO", "PROMO PLATA", "PROMO SMS", "PROMO SPAM"]
 )
 
-# Llamada a la función SQL en Supabase
 try:
     response = supabase.rpc("resumen_por_promocion", {"promo_name": promo}).execute()
     data = response.data
