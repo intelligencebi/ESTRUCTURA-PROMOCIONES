@@ -1,9 +1,9 @@
-import streamlit as st
-import pandas as pd
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-from app.utils.supabase_client import supabase
 
+import streamlit as st
+import pandas as pd
+from app.utils.supabase_client import supabase
 
 st.set_page_config(page_title="Registro general de jugadores", page_icon="📋", layout="wide")
 
@@ -21,15 +21,13 @@ uploaded_file = st.file_uploader("📂 Subí el archivo del reporte (.xlsx)", ty
 
 if uploaded_file:
     try:
-        # Leer el archivo Excel tal como viene
+        # Leer el archivo Excel
         df = pd.read_excel(uploaded_file)
 
         st.success(f"Archivo cargado correctamente ({len(df)} filas).")
         st.dataframe(df.head(10), use_container_width=True)
 
-        # 3️⃣ Confirmar subida
         if st.button("🚀 Subir a Supabase"):
-            # Mapeo de nombres de columnas del Excel -> columnas SQL
             column_map = {
                 "ID": "id_excel",
                 "operación": "operacion",
@@ -47,23 +45,21 @@ if uploaded_file:
                 "IP": "ip"
             }
 
-            # Renombrar columnas al formato correcto
             df = df.rename(columns=column_map)
 
-            # Normalizar tipos
+            # Normalización de datos
             df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce").dt.date
             df["depositar"] = pd.to_numeric(df["depositar"], errors="coerce").fillna(0)
             df["retirar"] = pd.to_numeric(df["retirar"], errors="coerce").fillna(0)
             df["wager"] = pd.to_numeric(df["wager"], errors="coerce").fillna(0)
 
-            # Agregar la columna plataforma
+            # Agregar la columna de plataforma
             df["plataforma"] = plataforma
 
-            # Eliminar el ID del Excel (no se usa)
+            # Eliminar columna ID de Excel
             if "id_excel" in df.columns:
                 df = df.drop(columns=["id_excel"])
 
-            # Insertar en Supabase
             data = df.to_dict(orient="records")
             response = supabase.table("transacciones").insert(data).execute()
 
@@ -74,4 +70,3 @@ if uploaded_file:
 
     except Exception as e:
         st.error(f"Error al procesar el archivo: {e}")
-
