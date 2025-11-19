@@ -51,7 +51,7 @@ if uploaded_file:
             df = df.rename(columns=column_map)
 
             # Normalización de datos
-            df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce").dt.date
+            df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce")
             df["depositar"] = pd.to_numeric(df["depositar"], errors="coerce").fillna(0)
             df["retirar"] = pd.to_numeric(df["retirar"], errors="coerce").fillna(0)
             df["wager"] = pd.to_numeric(df["wager"], errors="coerce").fillna(0)
@@ -63,16 +63,21 @@ if uploaded_file:
             if "id_excel" in df.columns:
                 df = df.drop(columns=["id_excel"])
 
-            # 🔧 Limpiar NaN y convertir a tipos válidos para JSON
+            # 🔧 Limpiar NaN
             for col in df.columns:
                 if df[col].dtype == "object":
                     df[col] = df[col].fillna("")
                 else:
                     df[col] = df[col].fillna(0)
 
-            # Convertir fecha y tiempo a string (JSON compatible)
-            df["fecha"] = df["fecha"].astype(str)
-            df["tiempo"] = df["tiempo"].astype(str)
+            # 🔧 Convertir cualquier datetime, date o time a string ISO
+            for col in df.columns:
+                if pd.api.types.is_datetime64_any_dtype(df[col]):
+                    df[col] = df[col].astype(str)
+            if "fecha" in df.columns:
+                df["fecha"] = df["fecha"].astype(str)
+            if "tiempo" in df.columns:
+                df["tiempo"] = df["tiempo"].astype(str)
 
             # Subir a Supabase
             data = df.to_dict(orient="records")
