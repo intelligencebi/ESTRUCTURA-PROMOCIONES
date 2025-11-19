@@ -63,12 +63,15 @@ if uploaded_file:
             if "id_excel" in df.columns:
                 df = df.drop(columns=["id_excel"])
 
-            # 🔧 Limpiar NaN antes de subir (clave para evitar errores JSON)
+            # 🔧 Limpiar NaN y convertir fechas a string (clave para evitar errores JSON)
             for col in df.columns:
                 if df[col].dtype == "object":
                     df[col] = df[col].fillna("")
                 else:
                     df[col] = df[col].fillna(0)
+
+            # Convertir fecha a string (para que sea JSON serializable)
+            df["fecha"] = df["fecha"].astype(str)
 
             # Subir a Supabase
             data = df.to_dict(orient="records")
