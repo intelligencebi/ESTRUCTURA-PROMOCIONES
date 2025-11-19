@@ -3,6 +3,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 
 import streamlit as st
 import pandas as pd
+import datetime
 from app.utils.supabase_client import supabase
 
 st.set_page_config(page_title="Registro general de jugadores", page_icon="📋", layout="wide")
@@ -50,8 +51,7 @@ if uploaded_file:
             }
             df = df.rename(columns=column_map)
 
-            # Normalización de datos
-            df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce")
+            # Normalización básica
             df["depositar"] = pd.to_numeric(df["depositar"], errors="coerce").fillna(0)
             df["retirar"] = pd.to_numeric(df["retirar"], errors="coerce").fillna(0)
             df["wager"] = pd.to_numeric(df["wager"], errors="coerce").fillna(0)
@@ -63,21 +63,16 @@ if uploaded_file:
             if "id_excel" in df.columns:
                 df = df.drop(columns=["id_excel"])
 
-            # 🔧 Limpiar NaN
-            for col in df.columns:
-                if df[col].dtype == "object":
-                    df[col] = df[col].fillna("")
-                else:
-                    df[col] = df[col].fillna(0)
+            # 🔧 Limpieza de NaN
+            df = df.fillna("")
 
-            # 🔧 Convertir cualquier datetime, date o time a string ISO
-            for col in df.columns:
-                if pd.api.types.is_datetime64_any_dtype(df[col]):
-                    df[col] = df[col].astype(str)
-            if "fecha" in df.columns:
-                df["fecha"] = df["fecha"].astype(str)
-            if "tiempo" in df.columns:
-                df["tiempo"] = df["tiempo"].astype(str)
+            # 🔧 Conversión universal a string si el valor es datetime o date o time
+            def convertir_valor(v):
+                if isinstance(v, (datetime.datetime, datetime.date, datetime.time, pd.Timestamp)):
+                    return v.strftime("%Y-%m-%d %H:%M:%S")
+                return v
+
+            df = df.applymap(convertir_valor)
 
             # Subir a Supabase
             data = df.to_dict(orient="records")
