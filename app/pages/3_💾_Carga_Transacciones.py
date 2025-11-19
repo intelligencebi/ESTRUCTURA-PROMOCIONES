@@ -8,7 +8,7 @@ from app.utils.supabase_client import supabase
 st.set_page_config(page_title="Registro general de jugadores", page_icon="📋", layout="wide")
 
 st.title("📋 Registro general de jugadores")
-st.caption("Seleccioná el casino al que pertenece este reporte y subí el archivo Excel (.xlsx).")
+st.caption("Seleccioná el casino al que pertenece este reporte y subí el archivo Excel (.xlsx o .csv).")
 
 # 1️⃣ Seleccionar la plataforma
 plataforma = st.selectbox(
@@ -16,18 +16,22 @@ plataforma = st.selectbox(
     ["Fénix", "Eros", "Bet Argento", "Atlantis", "Spirita", "Mi Jugada"]
 )
 
-# 2️⃣ Subir el archivo Excel
-uploaded_file = st.file_uploader("📂 Subí el archivo del reporte (.xlsx)", type=["xlsx"])
+# 2️⃣ Subir el archivo Excel o CSV
+uploaded_file = st.file_uploader("📂 Subí el archivo del reporte (.xlsx o .csv)", type=["xlsx", "csv"])
 
 if uploaded_file:
     try:
-        # Leer el archivo Excel
-        df = pd.read_excel(uploaded_file)
+        # Leer Excel o CSV automáticamente
+        if uploaded_file.name.endswith(".csv"):
+            df = pd.read_csv(uploaded_file)
+        else:
+            df = pd.read_excel(uploaded_file)
 
         st.success(f"Archivo cargado correctamente ({len(df)} filas).")
         st.dataframe(df.head(10), use_container_width=True)
 
         if st.button("🚀 Subir a Supabase"):
+            # Mapeo de columnas
             column_map = {
                 "ID": "id_excel",
                 "operación": "operacion",
@@ -44,7 +48,6 @@ if uploaded_file:
                 "Al usuario": "al_usuario",
                 "IP": "ip"
             }
-
             df = df.rename(columns=column_map)
 
             # Normalización de datos
@@ -60,6 +63,14 @@ if uploaded_file:
             if "id_excel" in df.columns:
                 df = df.drop(columns=["id_excel"])
 
+            # 🔧 Limpiar NaN antes de subir (clave para evitar errores JSON)
+            for col in df.columns:
+                if df[col].dtype == "object":
+                    df[col] = df[col].fillna("")
+                else:
+                    df[col] = df[col].fillna(0)
+
+            # Subir a Supabase
             data = df.to_dict(orient="records")
             response = supabase.table("transacciones").insert(data).execute()
 
