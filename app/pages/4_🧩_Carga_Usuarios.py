@@ -51,10 +51,9 @@ if uploaded_file:
         # ===============================
         # 🧹 LIMPIEZA DE DATOS
         # ===============================
-        # Reemplaza NaN por texto vacío o 0 según corresponda
         df = df.fillna("")
 
-        # Conversión universal de datetime, date o timestamp → string
+        # Conversión de tipos específicos
         def convertir_valor(v):
             if isinstance(v, (datetime.datetime, datetime.date, pd.Timestamp)):
                 return v.strftime("%Y-%m-%d %H:%M:%S")
@@ -62,13 +61,16 @@ if uploaded_file:
 
         df = df.applymap(convertir_valor)
 
+        # 🔢 Asegurar que monto_ofrecido sea numérico válido
+        if "monto_ofrecido" in df.columns:
+            df["monto_ofrecido"] = pd.to_numeric(df["monto_ofrecido"], errors="coerce").fillna(0)
+
         # ===============================
         # 🚀 CARGA A SUPABASE
         # ===============================
         if st.button("🚀 Cargar contactos a Supabase"):
             data = df.to_dict(orient="records")
 
-            # Inserción masiva
             response = supabase.table("contactos_promocionales").insert(data).execute()
 
             if response.data:
