@@ -65,6 +65,15 @@ if uploaded_file:
         if "monto_ofrecido" in df.columns:
             df["monto_ofrecido"] = pd.to_numeric(df["monto_ofrecido"], errors="coerce").fillna(0)
 
+        # Limpieza del campo propuesta_id
+        if "propuesta_id" in df.columns:
+            df["propuesta_id"] = (
+                df["propuesta_id"]
+                .astype(str)
+                .str.replace("ID:", "", regex=False)
+                .str.strip()  # 🔹 Elimina espacios al inicio y al final
+            )
+
         # ===============================
         # 🚀 CARGA A SUPABASE
         # ===============================
