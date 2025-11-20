@@ -32,11 +32,11 @@ if st.button("🔍 Consultar Seguimiento"):
             df = pd.DataFrame(response.data)
 
             # ✅ Métricas superiores
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             col1.metric("👥 Usuarios Convertidos", len(df))
             col2.metric("💰 Total Cargas", f"${df['total_cargas'].sum():,.2f}")
-            col3.metric("📈 Profit Total", f"${df['profit'].sum():,.2f}")
-
+            col3.metric("🏧 Total Retirado", f"${df['total_retiros'].sum():,.2f}")
+            col4.metric("📈 Profit Total", f"${df['profit'].sum():,.2f}")
             # 📊 Tabla de resultados
             st.dataframe(df, use_container_width=True, height=600)
 
