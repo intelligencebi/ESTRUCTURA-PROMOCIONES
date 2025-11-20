@@ -16,21 +16,23 @@ supabase = create_client(url, key)
 # 🎯 PÁGINA: RESUMEN DE PROMOS
 # ==========================
 st.set_page_config(page_title="Resumen Promos", page_icon="📊", layout="wide")
-st.title("📊 Resumen Diario por Promoción")
+st.title("📊 Resumen Diario y General por Promoción")
 
 promo = st.selectbox(
     "Seleccioná una promoción",
     ["PROMO ORO", "PROMO PLATA", "PROMO SMS", "PROMO SPAM"]
 )
 
-# ---- Bloque 1: Resumen Diario existente ----
+# ---- 📈 BLOQUE 1: Resumen Diario (función existente) ----
+st.subheader("📆 Resumen Diario por Promoción")
+
 try:
     response = supabase.rpc("resumen_por_promocion", {"promo_name": promo}).execute()
     data = response.data
 
     if data:
         df = pd.DataFrame(data)
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, use_container_width=True, height=400)
 
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("💰 Total In", f"${df['total_in'].sum():,.2f}")
@@ -38,39 +40,48 @@ try:
         col3.metric("📈 Ganancia Neta", f"${df['ganancias'].sum():,.2f}")
         col4.metric("🧮 Días Activos", f"{len(df)} días")
     else:
-        st.warning("No hay datos para esta promoción.")
+        st.info("No hay datos para esta promoción.")
 except Exception as e:
     st.error(f"❌ Error al obtener los datos diarios: {e}")
 
-# ---- Bloque 2: Resumen General por Identificador ----
-st.subheader("📋 Resumen General por Identificador")
-
-try:
-    response = supabase.rpc("resumen_general_promos").execute()
-    if response.data:
-        df_general = pd.DataFrame(response.data)
-        st.dataframe(df_general, use_container_width=True, height=400)
-
-        total_global = df_general["total_recaudado"].sum()
-        st.metric("💰 Total Recaudado (General)", f"${total_global:,.2f}")
-
-        # Opción de descarga
-        csv = df_general.to_csv(index=False).encode("utf-8")
-        st.download_button("📤 Descargar Resumen General", csv, "resumen_general_promos.csv", "text/csv")
-    else:
-        st.info("No se encontraron datos generales.")
-except Exception as e:
-    st.error(f"❌ Error al obtener el resumen general: {e}")
-
-# ---- Bloque 3: Resumen Total por Nombre de Propuesta ----
-st.subheader("📊 Totales por Nombre de Propuesta")
+# ---- 🧾 BLOQUE 2: Resumen Total por Propuesta (DETALLE) ----
+st.subheader("📋 Detalle por Identificador de Propuesta")
 
 try:
     response = supabase.rpc("resumen_total_por_propuesta").execute()
     if response.data:
-        df_total = pd.DataFrame(response.data)
-        st.dataframe(df_total, use_container_width=True, height=300)
+        df_detalle = pd.DataFrame(response.data)
+        st.dataframe(df_detalle, use_container_width=True, height=350)
+
+        total_global = df_detalle["total_recaudado"].sum()
+        total_usuarios = df_detalle["total_convertidos"].sum()
+
+        col1, col2 = st.columns(2)
+        col1.metric("👥 Total Convertidos (Global)", f"{int(total_usuarios):,}")
+        col2.metric("💰 Total Recaudado (Global)", f"${total_global:,.2f}")
+
+        # 📥 Descargar CSV
+        csv = df_detalle.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            "📤 Descargar Detalle de Propuestas",
+            csv,
+            "detalle_por_propuesta.csv",
+            "text/csv"
+        )
     else:
-        st.info("No se encontraron totales por propuesta.")
+        st.info("No se encontraron datos por propuesta.")
 except Exception as e:
     st.error(f"❌ Error al obtener los totales por propuesta: {e}")
+
+# ---- 🧩 BLOQUE 3: Resumen Agrupado por Nombre (GENERAL) ----
+st.subheader("📊 Totales Agrupados por Nombre de Propuesta")
+
+try:
+    response = supabase.rpc("resumen_por_nombre_propuesta").execute()
+    if response.data:
+        df_general = pd.DataFrame(response.data)
+        st.dataframe(df_general, use_container_width=True, height=300)
+    else:
+        st.info("No se encontraron totales agrupados por nombre de propuesta.")
+except Exception as e:
+    st.error(f"❌ Error al obtener el resumen general: {e}")
