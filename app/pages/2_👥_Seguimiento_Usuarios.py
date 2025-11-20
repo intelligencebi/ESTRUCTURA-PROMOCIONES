@@ -76,7 +76,26 @@ with col1:
         ["ADQUISICION - TERCEROS", "RECUPERACION INACTIVOS", "RECUPERACION TELEFONOS MUERTOS"]
     )
 with col2:
-    identificador = st.text_input("🧩 Identificador (Ej: SMS_ADQ_TERCEROS_01)")
+    # 🔄 Obtener identificadores válidos desde la base
+    try:
+        response_ids = supabase.rpc(
+            "obtener_identificadores_validos",
+            {"p_nombre_propuesta": nombre_propuesta}
+        ).execute()
+
+        if response_ids.data:
+            lista_identificadores = sorted([r["identificador"] for r in response_ids.data])
+        else:
+            lista_identificadores = []
+
+    except Exception as e:
+        st.error(f"❌ Error al cargar identificadores: {e}")
+        lista_identificadores = []
+
+    identificador = st.selectbox(
+        "🧩 Identificador",
+        lista_identificadores if lista_identificadores else ["(Sin identificadores disponibles)"]
+    )
 with col3:
     mes_ingreso = st.date_input("🗓️ Mes de ingreso", date(2025, 11, 1))
 
