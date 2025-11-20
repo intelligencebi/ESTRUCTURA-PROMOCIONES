@@ -23,13 +23,12 @@ promo = st.selectbox(
     ["PROMO ORO", "PROMO PLATA", "PROMO SMS", "PROMO SPAM"]
 )
 
+# ---- Bloque 1: Resumen Diario existente ----
 try:
     response = supabase.rpc("resumen_por_promocion", {"promo_name": promo}).execute()
     data = response.data
 
-    if not data:
-        st.warning("No hay datos para esta promoción.")
-    else:
+    if data:
         df = pd.DataFrame(data)
         st.dataframe(df, use_container_width=True)
 
@@ -38,6 +37,40 @@ try:
         col2.metric("💸 Total Out", f"${df['total_out'].sum():,.2f}")
         col3.metric("📈 Ganancia Neta", f"${df['ganancias'].sum():,.2f}")
         col4.metric("🧮 Días Activos", f"{len(df)} días")
-
+    else:
+        st.warning("No hay datos para esta promoción.")
 except Exception as e:
-    st.error(f"❌ Error al obtener los datos: {e}")
+    st.error(f"❌ Error al obtener los datos diarios: {e}")
+
+# ---- Bloque 2: Resumen General por Identificador ----
+st.subheader("📋 Resumen General por Identificador")
+
+try:
+    response = supabase.rpc("resumen_general_promos").execute()
+    if response.data:
+        df_general = pd.DataFrame(response.data)
+        st.dataframe(df_general, use_container_width=True, height=400)
+
+        total_global = df_general["total_recaudado"].sum()
+        st.metric("💰 Total Recaudado (General)", f"${total_global:,.2f}")
+
+        # Opción de descarga
+        csv = df_general.to_csv(index=False).encode("utf-8")
+        st.download_button("📤 Descargar Resumen General", csv, "resumen_general_promos.csv", "text/csv")
+    else:
+        st.info("No se encontraron datos generales.")
+except Exception as e:
+    st.error(f"❌ Error al obtener el resumen general: {e}")
+
+# ---- Bloque 3: Resumen Total por Nombre de Propuesta ----
+st.subheader("📊 Totales por Nombre de Propuesta")
+
+try:
+    response = supabase.rpc("resumen_total_por_propuesta").execute()
+    if response.data:
+        df_total = pd.DataFrame(response.data)
+        st.dataframe(df_total, use_container_width=True, height=300)
+    else:
+        st.info("No se encontraron totales por propuesta.")
+except Exception as e:
+    st.error(f"❌ Error al obtener los totales por propuesta: {e}")
