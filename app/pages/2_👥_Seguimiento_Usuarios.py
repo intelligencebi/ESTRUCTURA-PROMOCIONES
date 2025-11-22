@@ -45,17 +45,35 @@ if st.button("🔍 Consultar Seguimiento"):
             col3.metric("🏧 Total Retirado", f"${df['total_retiros'].sum():,.2f}")
             col4.metric("📈 Profit Total", f"${df['profit'].sum():,.2f}")
 
-            # 📊 Tabla de resultados
-            st.dataframe(df, use_container_width=True, height=600)
+            # 📊 Mostrar todos los datos sin límite visual
+            st.markdown("### 📋 Resultados completos")
+            st.dataframe(
+                df,
+                use_container_width=True,
+                height=min(900, 40 + len(df) * 35),  # 🔹 ajusta altura dinámica
+            )
 
-            # 📥 Exportar a CSV
+            # Mostrar cantidad total exacta
+            st.caption(f"Mostrando {len(df):,} registros totales de Supabase.")
+
+            # 📥 Exportar a CSV completo
             csv = df.to_csv(index=False).encode("utf-8")
             st.download_button(
-                "📤 Descargar resultados en CSV",
+                "📤 Descargar resultados completos en CSV",
                 csv,
                 file_name=f"seguimiento_{promo}_{fecha_inicio}_{fecha_fin}.csv",
                 mime="text/csv"
             )
+
+            # ✅ Alternativa: vista paginada si el DataFrame es muy grande
+            if len(df) > 5000:
+                st.warning("⚠️ El dataset es grande, se recomienda descargar el CSV completo para un análisis fluido.")
+                page_size = st.slider("📄 Registros por página", 500, 2000, 1000)
+                num_pages = (len(df) // page_size) + 1
+                page = st.number_input("Página", 1, num_pages, 1)
+                start = (page - 1) * page_size
+                end = start + page_size
+                st.dataframe(df.iloc[start:end], use_container_width=True, height=600)
 
         else:
             st.info("No se encontraron registros para los filtros seleccionados.")
