@@ -21,6 +21,22 @@ promo = st.selectbox(
 fecha_inicio = st.date_input("Desde", date(2025, 11, 1))
 fecha_fin = st.date_input("Hasta", date(2025, 11, 19))
 
+# === 🧮 FILTROS INTERACTIVOS PERSISTENTES ===
+st.markdown("### ⚙️ Filtros de visualización")
+colf1, colf2 = st.columns(2)
+with colf1:
+    filtrar_cargaron = st.checkbox(
+        "Mostrar solo usuarios con cargas > 0",
+        key="filtrar_cargaron",
+        value=st.session_state.get("filtrar_cargaron", False),
+    )
+with colf2:
+    filtrar_retiraron = st.checkbox(
+        "Mostrar solo usuarios que retiraron sin cargar",
+        key="filtrar_retiraron",
+        value=st.session_state.get("filtrar_retiraron", False),
+    )
+
 # ==========================
 # 🚀 BLOQUE 1 - SEGUIMIENTO POR PROMOCIÓN
 # ==========================
@@ -59,25 +75,21 @@ if st.button("🔍 Consultar Seguimiento"):
         if all_data:
             df = pd.DataFrame(all_data)
 
-            # === 🧮 FILTROS INTERACTIVOS ===
-            st.markdown("### ⚙️ Filtros de visualización")
-            colf1, colf2 = st.columns(2)
-            with colf1:
-                filtrar_cargaron = st.checkbox("Mostrar solo usuarios con cargas > 0", value=False)
-            with colf2:
-                filtrar_retiraron = st.checkbox("Mostrar solo usuarios que retiraron sin cargar", value=False)
-
+            # === Aplicar filtros persistentes ===
             df_filtrado = df.copy()
 
             if filtrar_cargaron:
                 df_filtrado = df_filtrado[df_filtrado["total_cargas"] > 0]
 
             if filtrar_retiraron:
-                df_filtrado = df_filtrado[df_filtrado["retiraron_sin_cargar"].notnull() & (df_filtrado["retiraron_sin_cargar"] != "None")]
+                df_filtrado = df_filtrado[
+                    df_filtrado["retiraron_sin_cargar"].notnull()
+                    & (df_filtrado["retiraron_sin_cargar"] != "None")
+                ]
 
             # === 📊 MÉTRICAS SUPERIORES ===
             col1, col2, col3, col4 = st.columns(4)
-            usuarios_convertidos = (df_filtrado["total_cargas"] > 0).sum()  # solo los que cargaron
+            usuarios_convertidos = (df_filtrado["total_cargas"] > 0).sum()
             col1.metric("👥 Usuarios Convertidos", usuarios_convertidos)
             col2.metric("💰 Total Cargas", f"${df_filtrado['total_cargas'].sum():,.2f}")
             col3.metric("🏧 Total Retirado", f"${df_filtrado['total_retiros'].sum():,.2f}")
