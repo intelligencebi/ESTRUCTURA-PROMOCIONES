@@ -26,17 +26,38 @@ fecha_fin = st.date_input("Hasta", date(2025, 11, 19))
 # ==========================
 if st.button("🔍 Consultar Seguimiento"):
     try:
-        response = supabase.rpc(
-            "seguimiento_por_promocion",
-            {
-                "p_promo_name": promo,
-                "p_fecha_inicio": str(fecha_inicio),
-                "p_fecha_fin": str(fecha_fin)
-            }
-        ).execute()
+        # 🔄 Recuperar todos los registros en lotes de 1000
+        all_data = []
+        batch_size = 1000
+        offset = 0
 
-        if response.data:
-            df = pd.DataFrame(response.data)
+        while True:
+            batch = (
+                supabase.rpc(
+                    "seguimiento_por_promocion",
+                    {
+                        "p_promo_name": promo,
+                        "p_fecha_inicio": str(fecha_inicio),
+                        "p_fecha_fin": str(fecha_fin)
+                    }
+                )
+                .range(offset, offset + batch_size - 1)
+                .execute()
+            )
+
+            if not batch.data:
+                break
+
+            all_data.extend(batch.data)
+
+            if len(batch.data) < batch_size:
+                break
+
+            offset += batch_size
+
+        # ✅ Convertir a DataFrame si hay datos
+        if all_data:
+            df = pd.DataFrame(all_data)
 
             # ✅ Métricas superiores
             col1, col2, col3, col4 = st.columns(4)
@@ -50,11 +71,11 @@ if st.button("🔍 Consultar Seguimiento"):
             st.dataframe(
                 df,
                 use_container_width=True,
-                height=min(900, 40 + len(df) * 35),  # 🔹 ajusta altura dinámica
+                height=min(900, 40 + len(df) * 35),
             )
 
             # Mostrar cantidad total exacta
-            st.caption(f"Mostrando {len(df):,} registros totales de Supabase.")
+            st.caption(f"Mostrando {len(df):,} registros totales obtenidos de Supabase ✅")
 
             # 📥 Exportar a CSV completo
             csv = df.to_csv(index=False).encode("utf-8")
