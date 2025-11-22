@@ -4,6 +4,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 import streamlit as st
 import pandas as pd
 import datetime
+import time
 from app.utils.supabase_client import supabase
 
 st.set_page_config(page_title="Registro general de jugadores", page_icon="📋", layout="wide")
@@ -74,14 +75,44 @@ if uploaded_file:
 
             df = df.applymap(convertir_valor)
 
-            # Subir a Supabase
+            # ===============================
+            # 🚀 CARGA A SUPABASE (EN LOTES)
+            # ===============================
             data = df.to_dict(orient="records")
-            response = supabase.table("transacciones").insert(data).execute()
+            total_rows = len(data)
+            batch_size = 1000  # 🔹 Tamaño del lote
+            success_rows = 0
+            errores = []
 
-            if response.data:
-                st.success(f"✅ {len(df)} registros cargados exitosamente a '{plataforma}'.")
-            else:
-                st.error("❌ No se pudo insertar en Supabase. Verificá el formato o los datos.")
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+
+            for i in range(0, total_rows, batch_size):
+                batch = data[i:i + batch_size]
+                try:
+                    response = supabase.table("transacciones").insert(batch).execute()
+                    if response.data is not None:
+                        success_rows += len(batch)
+                except Exception as e:
+                    errores.append(f"Lote {i // batch_size + 1}: {e}")
+                    st.warning(f"⚠️ Error en el lote {i // batch_size + 1}: {e}")
+                    continue
+
+                # Actualizar progreso
+                progreso = min((i + batch_size) / total_rows, 1.0)
+                progress_bar.progress(progreso)
+                status_text.text(f"Lote {i // batch_size + 1} cargado ({success_rows}/{total_rows})")
+
+                # 🔸 Delay corto para evitar throttling
+                time.sleep(0.4)
+
+            progress_bar.progress(1.0)
+
+            if errores:
+                st.warning(f"⚠️ {len(errores)} lotes fallaron. Mostrando los primeros 3:")
+                st.write(errores[:3])
+
+            st.success(f"✅ Carga completada: {success_rows} de {total_rows} filas subidas correctamente a '{plataforma}'.")
 
     except Exception as e:
-        st.error(f"Error al procesar el archivo: {e}")
+        st.error(f"❌ Error al procesar el archivo: {e}")
