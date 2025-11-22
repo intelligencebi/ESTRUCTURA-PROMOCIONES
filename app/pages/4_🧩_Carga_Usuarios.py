@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import datetime
 from supabase import create_client
+import time
 
 # ===============================
 # ⚙️ CONFIGURACIÓN DE LA PÁGINA
@@ -75,17 +76,37 @@ if uploaded_file:
             )
 
         # ===============================
-        # 🚀 CARGA A SUPABASE
+        # 🚀 CARGA A SUPABASE (OPTIMIZADA)
         # ===============================
         if st.button("🚀 Cargar contactos a Supabase"):
             data = df.to_dict(orient="records")
+            batch_size = 500  # 🔹 Subir en lotes de 500 filas
+            total_rows = len(data)
+            success_rows = 0
 
-            response = supabase.table("contactos_promocionales").insert(data).execute()
+            progress_bar = st.progress(0)
+            status_text = st.empty()
 
-            if response.data:
-                st.success(f"✅ {len(df)} contactos cargados correctamente en Supabase.")
-            else:
-                st.warning("⚠️ No se insertaron datos. Verificá los nombres de columnas o el formato.")
+            for i in range(0, total_rows, batch_size):
+                batch = data[i:i + batch_size]
+                try:
+                    response = supabase.table("contactos_promocionales").insert(batch).execute()
+                    if response.data is not None:
+                        success_rows += len(batch)
+                except Exception as e:
+                    st.error(f"❌ Error en el lote {i // batch_size + 1}: {e}")
+                    continue
+
+                # Actualizar progreso
+                progress = min((i + batch_size) / total_rows, 1.0)
+                progress_bar.progress(progress)
+                status_text.text(f"Lote {i // batch_size + 1} cargado ({success_rows}/{total_rows})")
+
+                # 🔸 Delay corto para evitar throttling
+                time.sleep(0.4)
+
+            progress_bar.progress(1.0)
+            st.success(f"✅ Carga completada: {success_rows} de {total_rows} filas subidas correctamente.")
 
     except Exception as e:
         st.error(f"❌ Error al subir los datos: {e}")
