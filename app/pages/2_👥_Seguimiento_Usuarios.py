@@ -59,42 +59,59 @@ if st.button("🔍 Consultar Seguimiento"):
         if all_data:
             df = pd.DataFrame(all_data)
 
-            # ✅ Métricas superiores
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("👥 Usuarios Convertidos", len(df))
-            col2.metric("💰 Total Cargas", f"${df['total_cargas'].sum():,.2f}")
-            col3.metric("🏧 Total Retirado", f"${df['total_retiros'].sum():,.2f}")
-            col4.metric("📈 Profit Total", f"${df['profit'].sum():,.2f}")
+            # === 🧮 FILTROS INTERACTIVOS ===
+            st.markdown("### ⚙️ Filtros de visualización")
+            colf1, colf2 = st.columns(2)
+            with colf1:
+                filtrar_cargaron = st.checkbox("Mostrar solo usuarios con cargas > 0", value=False)
+            with colf2:
+                filtrar_retiraron = st.checkbox("Mostrar solo usuarios que retiraron sin cargar", value=False)
 
-            # 📊 Mostrar todos los datos sin límite visual
+            df_filtrado = df.copy()
+
+            if filtrar_cargaron:
+                df_filtrado = df_filtrado[df_filtrado["total_cargas"] > 0]
+
+            if filtrar_retiraron:
+                df_filtrado = df_filtrado[df_filtrado["retiraron_sin_cargar"].notnull() & (df_filtrado["retiraron_sin_cargar"] != "None")]
+
+            # === 📊 MÉTRICAS SUPERIORES ===
+            col1, col2, col3, col4 = st.columns(4)
+            usuarios_convertidos = (df_filtrado["total_cargas"] > 0).sum()  # solo los que cargaron
+            col1.metric("👥 Usuarios Convertidos", usuarios_convertidos)
+            col2.metric("💰 Total Cargas", f"${df_filtrado['total_cargas'].sum():,.2f}")
+            col3.metric("🏧 Total Retirado", f"${df_filtrado['total_retiros'].sum():,.2f}")
+            col4.metric("📈 Profit Total", f"${df_filtrado['profit'].sum():,.2f}")
+
+            # === 📋 RESULTADOS COMPLETOS ===
             st.markdown("### 📋 Resultados completos")
             st.dataframe(
-                df,
+                df_filtrado,
                 use_container_width=True,
-                height=min(900, 40 + len(df) * 35),
+                height=min(900, 40 + len(df_filtrado) * 35),
             )
 
             # Mostrar cantidad total exacta
-            st.caption(f"Mostrando {len(df):,} registros totales obtenidos de Supabase ✅")
+            st.caption(f"Mostrando {len(df_filtrado):,} registros filtrados de un total de {len(df):,} obtenidos de Supabase ✅")
 
-            # 📥 Exportar a CSV completo
-            csv = df.to_csv(index=False).encode("utf-8")
+            # 📥 Exportar CSV completo o filtrado
+            csv = df_filtrado.to_csv(index=False).encode("utf-8")
             st.download_button(
-                "📤 Descargar resultados completos en CSV",
+                "📤 Descargar resultados filtrados en CSV",
                 csv,
                 file_name=f"seguimiento_{promo}_{fecha_inicio}_{fecha_fin}.csv",
                 mime="text/csv"
             )
 
             # ✅ Alternativa: vista paginada si el DataFrame es muy grande
-            if len(df) > 5000:
+            if len(df_filtrado) > 5000:
                 st.warning("⚠️ El dataset es grande, se recomienda descargar el CSV completo para un análisis fluido.")
                 page_size = st.slider("📄 Registros por página", 500, 2000, 1000)
-                num_pages = (len(df) // page_size) + 1
+                num_pages = (len(df_filtrado) // page_size) + 1
                 page = st.number_input("Página", 1, num_pages, 1)
                 start = (page - 1) * page_size
                 end = start + page_size
-                st.dataframe(df.iloc[start:end], use_container_width=True, height=600)
+                st.dataframe(df_filtrado.iloc[start:end], use_container_width=True, height=600)
 
         else:
             st.info("No se encontraron registros para los filtros seleccionados.")
@@ -115,7 +132,6 @@ with col1:
         ["ADQUISICION - TERCEROS", "RECUPERACION INACTIVOS", "RECUPERACION TELEFONOS MUERTOS"]
     )
 with col2:
-    # 🔄 Obtener identificadores válidos desde la base
     try:
         response_ids = supabase.rpc(
             "obtener_identificadores_validos",
@@ -126,7 +142,6 @@ with col2:
             lista_identificadores = sorted([r["identificador"] for r in response_ids.data])
         else:
             lista_identificadores = []
-
     except Exception as e:
         st.error(f"❌ Error al cargar identificadores: {e}")
         lista_identificadores = []
@@ -155,7 +170,6 @@ if st.button("📈 Analizar Cohorte"):
             st.markdown("### 📅 Evolución mensual de la cohorte seleccionada")
             st.dataframe(df_ltv, use_container_width=True, height=500)
 
-            # === MÉTRICAS RESUMEN ===
             total_jugadores = df_ltv["jugadores_sobrevivientes"].iloc[0] if len(df_ltv) > 0 else 0
             total_ltv = df_ltv["ltv_acumulado"].iloc[-1] if len(df_ltv) > 0 else 0
             retencion_actual = df_ltv["retencion_pct"].iloc[-1] if len(df_ltv) > 0 else 0
@@ -165,12 +179,10 @@ if st.button("📈 Analizar Cohorte"):
             c2.metric("💰 LTV Acumulado Total", f"${total_ltv:,.2f}")
             c3.metric("📉 Retención Actual", f"{retencion_actual:.2f}%")
 
-            # === VISUALIZACIÓN ===
             st.markdown("### 📈 Curva de LTV acumulado y retención")
             chart_data = df_ltv.set_index("mes_actividad")[["ltv_acumulado", "retencion_pct"]]
             st.line_chart(chart_data)
 
-            # === EXPORTAR CSV ===
             csv_ltv = df_ltv.to_csv(index=False).encode("utf-8")
             st.download_button(
                 "📤 Descargar análisis LTV",
