@@ -75,10 +75,10 @@ col_f1, col_f2 = st.columns(2)
 fecha_inicio = col_f1.date_input("📅 Fecha Inicio", pd.to_datetime("2024-01-01"))
 fecha_fin = col_f2.date_input("📅 Fecha Fin", pd.to_datetime("today"))
 
-# ======= CONSULTA FINAL FILTRADA POR PROMO Y FECHAS =======
+# ======= CONSULTA FILTRADA POR PROMO Y FECHAS =======
 try:
     response = supabase.rpc(
-        "resumen_total_por_propuesta", 
+        "resumen_total_por_propuesta",
         {
             "p_promo_name": promo,
             "p_fecha_inicio": fecha_inicio.isoformat(),
@@ -89,32 +89,27 @@ try:
     if response.data:
         df_detalle = pd.DataFrame(response.data)
 
-        # Mostrar identificadores solamente como información (NO filtra)
-        lista_identificadores = sorted(df_detalle["identificador"].dropna().unique())
-
-        st.selectbox(
-            "🧩 Identificadores pertenecientes a esta promoción (informativo)",
-            lista_identificadores,
-            index=0 if lista_identificadores else None
-        )
-
         # Formato monetario
         if "total_recaudado" in df_detalle.columns:
             df_detalle["total_recaudado"] = df_detalle["total_recaudado"].apply(formatear_moneda)
 
+        # Mostrar tabla
         st.dataframe(df_detalle, use_container_width=True, height=350)
 
-        # Calcular totales
+        # Calcular totales reales
         df_detalle_numeric = df_detalle.copy()
-        df_detalle_numeric["total_recaudado_num"] = pd.to_numeric(
-            df_detalle["total_recaudado"]
-            .replace("[^0-9,]", "", regex=True)
-            .str.replace(".", "")
-            .str.replace(",", "."),
-            errors="coerce"
-        )
+        if "total_recaudado" in df_detalle_numeric.columns:
+            df_detalle_numeric["total_recaudado_numeric"] = pd.to_numeric(
+                df_detalle_numeric["total_recaudado"]
+                .replace("[^0-9,]", "", regex=True)
+                .str.replace(".", "")
+                .str.replace(",", "."),
+                errors="coerce"
+            )
+            total_global = df_detalle_numeric["total_recaudado_numeric"].sum()
+        else:
+            total_global = 0
 
-        total_global = df_detalle_numeric["total_recaudado_num"].sum()
         total_usuarios = df_detalle["total_convertidos"].sum()
 
         col1, col2 = st.columns(2)
@@ -129,11 +124,13 @@ try:
             "detalle_por_propuesta.csv",
             "text/csv"
         )
+
     else:
         st.info("No se encontraron datos para esta promoción y rango de fechas.")
 
 except Exception as e:
     st.error(f"❌ Error al obtener el detalle filtrado: {e}")
+
 
 # ===============================================
 # 🧩 BLOQUE 3: RESUMEN AGRUPADO POR NOMBRE
