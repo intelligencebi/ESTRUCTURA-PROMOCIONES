@@ -74,40 +74,29 @@ col_f1, col_f2 = st.columns(2)
 fecha_inicio = col_f1.date_input("📅 Fecha Inicio", pd.to_datetime("2024-01-01"))
 fecha_fin = col_f2.date_input("📅 Fecha Fin", pd.to_datetime("today"))
 
-# Obtener identificadores disponibles filtrados por PROMO
-response_ident = supabase.rpc(
-    "resumen_total_por_propuesta",
-    {
-        "p_promo_name": promo,
-        "p_fecha_inicio": "1900-01-01",
-        "p_fecha_fin": "2100-01-01"
-    }
-).execute()
-
-if response_ident.data:
-    df_identificadores = pd.DataFrame(response_ident.data)
-    lista_identificadores = sorted(df_identificadores["identificador"].dropna().unique())
-else:
-    lista_identificadores = []
-
-identificador = st.selectbox(
-    "🧩 Identificadores disponibles (solo muestra info, no filtra)",
-    lista_identificadores,
-    index=0 if lista_identificadores else None
-)
-
-# ======= CONSULTA FINAL FILTRADA SOLO POR PROMO =======
+# ======= CONSULTA FINAL FILTRADA POR PROMO Y FECHAS =======
 try:
-    filtros = {
-        "p_promo_name": promo,  # FILTRO REAL: SOLO LA PROMO
-        "p_fecha_inicio": fecha_inicio.isoformat(),
-        "p_fecha_fin": fecha_fin.isoformat()
-    }
-
-    response = supabase.rpc("resumen_total_por_propuesta", filtros).execute()
+    # ✅ CORREGIDO: Pasar los parámetros directamente, no como objeto JSON
+    response = supabase.rpc(
+        "resumen_total_por_propuesta", 
+        {
+            "p_promo_name": promo,
+            "p_fecha_inicio": fecha_inicio.isoformat(),
+            "p_fecha_fin": fecha_fin.isoformat()
+        }
+    ).execute()
 
     if response.data:
         df_detalle = pd.DataFrame(response.data)
+        
+        # Obtener identificadores del resultado (no de una consulta separada)
+        lista_identificadores = sorted(df_detalle["identificador"].dropna().unique())
+        
+        identificador = st.selectbox(
+            "🧩 Identificadores disponibles (solo muestra info, no filtra)",
+            lista_identificadores,
+            index=0 if lista_identificadores else None
+        )
 
         # Formato monetario
         if "total_recaudado" in df_detalle.columns:
@@ -115,13 +104,19 @@ try:
 
         st.dataframe(df_detalle, use_container_width=True, height=350)
 
-        total_global = pd.to_numeric(
-            df_detalle["total_recaudado"]
-            .replace("[^0-9,]", "", regex=True)
-            .str.replace(".", "")
-            .str.replace(",", "."),
-            errors="coerce"
-        ).sum()
+        # Calcular totales (convertir de vuelta a numérico para cálculos)
+        df_detalle_numeric = df_detalle.copy()
+        if "total_recaudado" in df_detalle_numeric.columns:
+            df_detalle_numeric["total_recaudado_numeric"] = pd.to_numeric(
+                df_detalle_numeric["total_recaudado"]
+                .replace("[^0-9,]", "", regex=True)
+                .str.replace(".", "")
+                .str.replace(",", "."),
+                errors="coerce"
+            )
+            total_global = df_detalle_numeric["total_recaudado_numeric"].sum()
+        else:
+            total_global = 0
 
         total_usuarios = df_detalle["total_convertidos"].sum()
 
