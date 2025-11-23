@@ -61,6 +61,7 @@ except Exception as e:
     st.error(f"❌ Error al obtener los datos diarios: {e}")
 
 
+
 # ===============================================
 # 🧾 BLOQUE 2: DETALLE POR IDENTIFICADOR (según PROMO)
 # ===============================================
@@ -76,7 +77,6 @@ fecha_fin = col_f2.date_input("📅 Fecha Fin", pd.to_datetime("today"))
 
 # ======= CONSULTA FINAL FILTRADA POR PROMO Y FECHAS =======
 try:
-    # ✅ CORREGIDO: Pasar los parámetros directamente, no como objeto JSON
     response = supabase.rpc(
         "resumen_total_por_propuesta", 
         {
@@ -88,12 +88,12 @@ try:
 
     if response.data:
         df_detalle = pd.DataFrame(response.data)
-        
-        # Obtener identificadores del resultado (no de una consulta separada)
+
+        # Mostrar identificadores solamente como información (NO filtra)
         lista_identificadores = sorted(df_detalle["identificador"].dropna().unique())
-        
-        identificador = st.selectbox(
-            "🧩 Identificadores disponibles (solo muestra info, no filtra)",
+
+        st.selectbox(
+            "🧩 Identificadores pertenecientes a esta promoción (informativo)",
             lista_identificadores,
             index=0 if lista_identificadores else None
         )
@@ -104,20 +104,17 @@ try:
 
         st.dataframe(df_detalle, use_container_width=True, height=350)
 
-        # Calcular totales (convertir de vuelta a numérico para cálculos)
+        # Calcular totales
         df_detalle_numeric = df_detalle.copy()
-        if "total_recaudado" in df_detalle_numeric.columns:
-            df_detalle_numeric["total_recaudado_numeric"] = pd.to_numeric(
-                df_detalle_numeric["total_recaudado"]
-                .replace("[^0-9,]", "", regex=True)
-                .str.replace(".", "")
-                .str.replace(",", "."),
-                errors="coerce"
-            )
-            total_global = df_detalle_numeric["total_recaudado_numeric"].sum()
-        else:
-            total_global = 0
+        df_detalle_numeric["total_recaudado_num"] = pd.to_numeric(
+            df_detalle["total_recaudado"]
+            .replace("[^0-9,]", "", regex=True)
+            .str.replace(".", "")
+            .str.replace(",", "."),
+            errors="coerce"
+        )
 
+        total_global = df_detalle_numeric["total_recaudado_num"].sum()
         total_usuarios = df_detalle["total_convertidos"].sum()
 
         col1, col2 = st.columns(2)
@@ -137,7 +134,6 @@ try:
 
 except Exception as e:
     st.error(f"❌ Error al obtener el detalle filtrado: {e}")
-
 
 # ===============================================
 # 🧩 BLOQUE 3: RESUMEN AGRUPADO POR NOMBRE
