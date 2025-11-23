@@ -70,13 +70,12 @@ st.subheader("📋 Detalle por Identificador de Propuesta")
 # ======= FILTROS =======
 st.markdown("### 🎯 Filtros")
 
-# Fechas
 col_f1, col_f2 = st.columns(2)
 fecha_inicio = col_f1.date_input("📅 Fecha Inicio", pd.to_datetime("2024-01-01"))
 fecha_fin = col_f2.date_input("📅 Fecha Fin", pd.to_datetime("today"))
 
-# ======= CONSULTA FILTRADA POR PROMO Y FECHAS =======
 try:
+    # Llamar función SQL con promo + fechas
     response = supabase.rpc(
         "resumen_total_por_propuesta",
         {
@@ -89,26 +88,20 @@ try:
     if response.data:
         df_detalle = pd.DataFrame(response.data)
 
-        # Formato monetario
+        # Formatear moneda
         if "total_recaudado" in df_detalle.columns:
             df_detalle["total_recaudado"] = df_detalle["total_recaudado"].apply(formatear_moneda)
 
-        # Mostrar tabla
         st.dataframe(df_detalle, use_container_width=True, height=350)
 
-        # Calcular totales reales
-        df_detalle_numeric = df_detalle.copy()
-        if "total_recaudado" in df_detalle_numeric.columns:
-            df_detalle_numeric["total_recaudado_numeric"] = pd.to_numeric(
-                df_detalle_numeric["total_recaudado"]
-                .replace("[^0-9,]", "", regex=True)
-                .str.replace(".", "")
-                .str.replace(",", "."),
-                errors="coerce"
-            )
-            total_global = df_detalle_numeric["total_recaudado_numeric"].sum()
-        else:
-            total_global = 0
+        # Calcular totales
+        total_global = pd.to_numeric(
+            df_detalle["total_recaudado"]
+            .replace("[^0-9,]", "", regex=True)
+            .str.replace(".", "")
+            .str.replace(",", "."),
+            errors="coerce"
+        ).sum()
 
         total_usuarios = df_detalle["total_convertidos"].sum()
 
@@ -116,7 +109,7 @@ try:
         col1.metric("👥 Total Convertidos", f"{int(total_usuarios):,}".replace(",", "."))
         col2.metric("💰 Total Recaudado", formatear_moneda(total_global))
 
-        # Descargar CSV
+        # Botón descarga
         csv = df_detalle.to_csv(index=False).encode("utf-8")
         st.download_button(
             "📤 Descargar Detalle de Propuestas",
@@ -124,7 +117,6 @@ try:
             "detalle_por_propuesta.csv",
             "text/csv"
         )
-
     else:
         st.info("No se encontraron datos para esta promoción y rango de fechas.")
 
